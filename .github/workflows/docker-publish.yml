@@ -1,0 +1,165 @@
+name: Docker Build & Publish
+
+on:
+  push:
+    branches: [ "main", "master" ]
+    paths:
+      - 'app/**'
+      - 'Dockerfile'
+      - 'compose.yaml'
+      - 'requirements.txt'
+
+  workflow_dispatch:
+
+  pull_request:
+    branches: [ "main", "master" ]
+    paths:
+      - 'app/**'
+      - 'Dockerfile'
+      - 'compose.yaml'
+      - 'requirements.txt'
+
+env:
+  REGISTRY: ghcr.io
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
+      id-token: write
+      security-events: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Bump version and push tag
+        id: tag_version
+        if: github.event_name == 'push'
+        uses: mathieudutour/github-tag-action@v6.2
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          default_bump: patch
+
+      - name: Create a GitHub Release
+        if: github.event_name == 'push'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.tag_version.outputs.new_tag }}
+          name: Release ${{ steps.tag_version.outputs.new_tag }}
+          body: ${{ steps.tag_version.outputs.changelog }}
+          generate_release_notes: true
+
+      - name: Lowercase Image Name
+        run: echo "IMAGE_NAME=${GITHUB_REPOSITORY,,}" >> ${GITHUB_ENV}
+
+      - name: Install cosign
+        if: github.event_name != 'pull_request'
+        uses: sigstore/cosign-installer@v4.1.0
+        with:
+          cosign-release: 'v2.1.1'
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log into registry ${{ env.REGISTRY }}
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=raw,value=${{ steps.tag_version.outputs.new_tag }},enable=${{ github.event_name == 'push' }}
+            type=ref,event=branch
+            type=ref,event=pr
+            type=sha
+
+      - name: Build and push Docker image
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Run container for testing
+        run: |
+          TEST_TAG=$(echo "${{ steps.meta.outputs.tags }}" | head -n 1)
+          echo "Starting container with tag: $TEST_TAG"
+          docker run -d \
+            -p 8000:8000 \
+            --tmpfs /data \
+            --name test-container \
+            "$TEST_TAG"
+
+      - name: Wait for service to be ready
+        run: |
+          echo "Waiting for service to be ready..."
+          for i in {1..15}; do
+            if curl -sf -o /dev/null http://localhost:8000; then
+              echo "Service is up!"
+              exit 0
+            fi
+            echo "  attempt $i/15 — waiting 2s..."
+            sleep 2
+          done
+          echo "Service failed to start in time."
+          docker logs test-container
+          exit 1
+
+      - name: Test homepage availability
+        run: |
+          echo "Testing homepage (follows redirect to /setup or /login)..."
+          HTTP_STATUS=$(curl -o /dev/null -s -w "%{http_code}" -L http://localhost:8000)
+          echo "HTTP Status: $HTTP_STATUS"
+          if [ "$HTTP_STATUS" -eq 200 ]; then
+            echo "Test passed: web UI is accessible."
+          else
+            echo "Test failed: unexpected status $HTTP_STATUS"
+            docker logs test-container
+            exit 1
+          fi
+
+      - name: Stop test container
+        if: always()
+        run: docker rm -f test-container
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@0.35.0
+        with:
+          image-ref: ${{ fromJSON(steps.meta.outputs.json).tags[0] }}
+          format: sarif
+          output: trivy-results.sarif
+          ignore-unfixed: true
+          vuln-type: os,library
+          severity: CRITICAL,HIGH
+
+      - name: Upload Trivy scan results to GitHub Security
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: trivy-results.sarif
+          ref: ${{ github.ref }}
+          sha: ${{ github.sha }}
+
+      - name: Sign the published Docker image
+        if: github.event_name != 'pull_request'
+        env:
+          TAGS: ${{ steps.meta.outputs.tags }}
+          DIGEST: ${{ steps.build.outputs.digest }}
+        run: echo "${TAGS}" | xargs -I {} cosign sign --yes {}@${DIGEST}

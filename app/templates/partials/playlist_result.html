@@ -1,0 +1,66 @@
+{% if deleted %}
+{# OOB swap: clear the existing playlist banner #}
+<div id="existing-playlist-banner" hx-swap-oob="innerHTML"></div>
+
+<div class="flex items-start gap-3 bg-zinc-800/60 border border-zinc-700 rounded-xl p-4 text-sm">
+  <svg class="w-4 h-4 text-zinc-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+  </svg>
+  <div>
+    <p class="font-medium text-zinc-200">Playlist deleted</p>
+    {% if playlist_title %}<p class="text-zinc-500 text-xs mt-0.5">"{{ playlist_title }}" removed from Plex.</p>{% endif %}
+  </div>
+</div>
+
+{% elif success %}
+{# OOB swap: update the existing playlist banner #}
+<div id="existing-playlist-banner" hx-swap-oob="innerHTML">
+  <div class="flex items-center gap-3 bg-violet-950/25 border border-violet-800/40 rounded-xl px-4 py-3 mb-4 max-w-lg">
+    <div class="w-2 h-2 rounded-full bg-violet-400 flex-shrink-0"></div>
+    <div class="flex-1 min-w-0">
+      <p class="text-sm font-medium text-zinc-200">Playlist active in Plex</p>
+      <p class="text-xs text-zinc-500 truncate mt-0.5">"{{ playlist_title }}"</p>
+    </div>
+    <button
+      type="button"
+      class="text-xs px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-rose-950/60 border border-zinc-700 hover:border-rose-800/60 text-zinc-400 hover:text-rose-400 transition-colors flex-shrink-0"
+      hx-post="/anime/{{ show_rating_key }}/playlist/delete"
+      hx-target="#playlist-result"
+      hx-swap="innerHTML"
+      hx-confirm="Delete '{{ playlist_title }}' from Plex?"
+    >
+      Delete
+    </button>
+  </div>
+</div>
+
+<div class="flex items-start gap-3 {% if no_change %}bg-zinc-800/60 border border-zinc-700{% else %}bg-emerald-950/30 border border-emerald-800/50{% endif %} rounded-xl p-4 text-sm">
+  <svg class="w-4 h-4 {% if no_change %}text-zinc-400{% else %}text-emerald-400{% endif %} flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+  </svg>
+  <div>
+    {% if no_change %}
+    <p class="font-medium text-zinc-200">Playlist already up to date</p>
+    {% elif update_type == "appended" %}
+    <p class="font-medium text-emerald-300">Playlist updated &mdash; new episodes added</p>
+    {% elif update_type == "recreated" %}
+    <p class="font-medium text-emerald-300">Playlist recreated</p>
+    {% else %}
+    <p class="font-medium text-emerald-300">Playlist created successfully</p>
+    {% endif %}
+    {% if playlist_title %}<p class="{% if no_change %}text-zinc-500{% else %}text-emerald-600{% endif %} text-xs mt-0.5">"{{ playlist_title }}"</p>{% endif %}
+    {% if not no_change %}<p class="text-zinc-500 text-xs mt-1.5">{{ matched }} of {{ total }} TVDB episodes matched to Plex.</p>{% endif %}
+  </div>
+</div>
+
+{% else %}
+<div class="flex items-start gap-3 bg-rose-950/30 border border-rose-800/50 rounded-xl p-4 text-sm">
+  <svg class="w-4 h-4 text-rose-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+  </svg>
+  <div>
+    <p class="font-medium text-rose-300">Failed to create playlist</p>
+    {% if error %}<p class="text-rose-500 text-xs mt-0.5">{{ error }}</p>{% endif %}
+  </div>
+</div>
+{% endif %}

@@ -1,0 +1,12 @@
+services:
+  kometa-playlist-maker:
+    build: .
+    container_name: kometa-playlist-maker
+    ports:
+      - "${PORT:-8000}:8000"
+    volumes:
+      - ./data:/data
+    environment:
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - TZ=${TZ:-UTC}
+    restart: unless-stopped

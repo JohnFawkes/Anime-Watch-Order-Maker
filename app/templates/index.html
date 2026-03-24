@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% block title %}Library — Anime Watch Order Maker{% endblock %}
+
+{% block content %}
+
+<div class="flex items-center justify-between mb-6 gap-4">
+  <div>
+    <h1 class="text-xl font-bold text-zinc-100">Anime Library</h1>
+    <p class="text-zinc-500 text-xs mt-0.5">{{ shows | length }} series</p>
+  </div>
+  <input
+    type="text"
+    id="search"
+    placeholder="Search..."
+    class="bg-zinc-900 border border-zinc-800 rounded-lg px-4 py-2 text-sm text-zinc-100 placeholder-zinc-600 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition w-56"
+    oninput="filterShows(this.value)"
+  >
+</div>
+
+{% if error %}
+<div class="mb-6 flex items-center gap-3 px-4 py-3 bg-rose-950/40 border border-rose-800/60 rounded-xl text-rose-400 text-sm">
+  <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+  </svg>
+  <span>{{ error }}</span>
+  <a href="/settings" class="ml-auto text-rose-300 hover:text-rose-200 underline underline-offset-2 whitespace-nowrap">Check settings</a>
+</div>
+{% endif %}
+
+<div id="grid" class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 gap-3">
+  {% for show in shows %}
+  <a
+    href="/anime/{{ show.rating_key }}"
+    class="group block"
+    data-title="{{ show.title | lower }}"
+  >
+    <div class="relative aspect-[2/3] rounded-lg overflow-hidden bg-zinc-800 border border-zinc-800 group-hover:border-violet-500 transition-colors duration-150 mb-2">
+      {% if show.rating_key in skipped_keys %}
+      <div class="absolute top-1.5 left-1.5 z-10 px-1.5 py-0.5 bg-amber-900/80 border border-amber-700/60 rounded text-[10px] font-semibold text-amber-300 backdrop-blur-sm">
+        SKIP
+      </div>
+      {% endif %}
+      {% if show.thumb %}
+      <img
+        src="/proxy/thumb?path={{ show.thumb | urlencode }}"
+        alt="{{ show.title }}"
+        class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
+        loading="lazy"
+      >
+      {% else %}
+      <div class="w-full h-full flex items-center justify-center text-zinc-700">
+        <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 4v16M17 4v16M3 8h4m10 0h4M3 12h18M3 16h4m10 0h4M4 20h16a1 1 0 001-1V5a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z"/>
+        </svg>
+      </div>
+      {% endif %}
+    </div>
+    <p class="text-xs font-medium text-zinc-300 leading-snug line-clamp-2 group-hover:text-violet-400 transition-colors">{{ show.title }}</p>
+    {% if show.year %}<p class="text-[11px] text-zinc-600 mt-0.5">{{ show.year }}</p>{% endif %}
+  </a>
+  {% endfor %}
+</div>
+
+<p id="no-results" class="hidden text-center py-16 text-zinc-500 text-sm">No results for your search.</p>
+
+<script>
+function filterShows(q) {
+  q = q.toLowerCase().trim();
+  let n = 0;
+  document.querySelectorAll('#grid > a').forEach(el => {
+    const match = !q || el.dataset.title.includes(q);
+    el.style.display = match ? '' : 'none';
+    if (match) n++;
+  });
+  document.getElementById('no-results').classList.toggle('hidden', n > 0 || !q);
+}
+</script>
+
+{% endblock %}

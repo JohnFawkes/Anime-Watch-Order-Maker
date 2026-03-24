@@ -1,0 +1,29 @@
+<div id="skip-container">
+  <form id="skip-form-{{ rating_key }}">
+    <input type="hidden" name="show_title" value="{{ show_title | e }}">
+  </form>
+  <button
+    type="button"
+    class="text-xs px-3 py-1.5 rounded-lg transition-colors {% if skipped %}bg-amber-950/40 border border-amber-800/60 text-amber-400 hover:bg-zinc-800 hover:border-zinc-700 hover:text-zinc-300{% else %}bg-zinc-800 border border-zinc-700 text-zinc-400 hover:bg-amber-950/40 hover:border-amber-800/60 hover:text-amber-400{% endif %}"
+    hx-post="/anime/{{ rating_key }}/skip"
+    hx-target="#skip-container"
+    hx-swap="outerHTML"
+    hx-include="#skip-form-{{ rating_key }}"
+  >
+    {% if skipped %}
+    <span class="flex items-center gap-1.5">
+      <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/>
+      </svg>
+      Auto-Skipped &mdash; Click to Re-enable
+    </span>
+    {% else %}
+    <span class="flex items-center gap-1.5">
+      <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 115.636 5.636m12.728 12.728L5.636 5.636"/>
+      </svg>
+      Skip Auto-Create
+    </span>
+    {% endif %}
+  </button>
+</div>

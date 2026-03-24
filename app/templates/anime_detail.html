@@ -1,0 +1,169 @@
+{% extends "base.html" %}
+{% block title %}{% if show %}{{ show.title }} — {% endif %}Anime Watch Order Maker{% endblock %}
+
+{% block content %}
+
+<a href="/" class="inline-flex items-center gap-1.5 text-sm text-zinc-500 hover:text-zinc-300 transition-colors mb-6">
+  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+  </svg>
+  Back to Library
+</a>
+
+{% if error %}
+<div class="mb-6 px-4 py-3 bg-rose-950/40 border border-rose-800/60 rounded-xl text-rose-400 text-sm">{{ error }}</div>
+{% endif %}
+
+{% if show %}
+<div class="flex flex-col lg:flex-row gap-8">
+
+  <!-- Poster -->
+  <div class="flex-shrink-0 w-44 lg:w-48">
+    <div class="aspect-[2/3] rounded-xl overflow-hidden bg-zinc-800 border border-zinc-800">
+      {% if show.thumb %}
+      <img src="/proxy/thumb?path={{ show.thumb | urlencode }}" alt="{{ show.title }}" class="w-full h-full object-cover">
+      {% else %}
+      <div class="w-full h-full flex items-center justify-center text-zinc-700">
+        <svg class="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 4v16M17 4v16M3 8h4m10 0h4M3 12h18M3 16h4m10 0h4M4 20h16a1 1 0 001-1V5a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z"/>
+        </svg>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Details -->
+  <div class="flex-1 min-w-0">
+    <h1 class="text-3xl font-bold text-zinc-50 leading-tight mb-1">{{ show.title }}</h1>
+    {% if show.year %}<p class="text-zinc-500 text-sm mb-4">{{ show.year }}</p>{% endif %}
+    {% if show.summary %}
+    <p class="text-zinc-400 text-sm leading-relaxed mb-6 max-w-2xl">{{ show.summary }}</p>
+    {% endif %}
+
+    <!-- Skip toggle for cron auto-create -->
+    <div id="skip-container" class="mb-4">
+      <form id="skip-form-{{ show.rating_key }}">
+        <input type="hidden" name="show_title" value="{{ show.title | e }}">
+      </form>
+      <button
+        type="button"
+        class="text-xs px-3 py-1.5 rounded-lg transition-colors {% if skipped %}bg-amber-950/40 border border-amber-800/60 text-amber-400 hover:bg-zinc-800 hover:border-zinc-700 hover:text-zinc-300{% else %}bg-zinc-800 border border-zinc-700 text-zinc-400 hover:bg-amber-950/40 hover:border-amber-800/60 hover:text-amber-400{% endif %}"
+        hx-post="/anime/{{ show.rating_key }}/skip"
+        hx-target="#skip-container"
+        hx-swap="outerHTML"
+        hx-include="#skip-form-{{ show.rating_key }}"
+      >
+        {% if skipped %}
+        <span class="flex items-center gap-1.5">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/>
+          </svg>
+          Auto-Skipped &mdash; Click to Re-enable
+        </span>
+        {% else %}
+        <span class="flex items-center gap-1.5">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 115.636 5.636m12.728 12.728L5.636 5.636"/>
+          </svg>
+          Skip Auto-Create
+        </span>
+        {% endif %}
+      </button>
+    </div>
+
+    <!-- Meta badges -->
+    <div class="flex flex-wrap gap-2 mb-8">
+      {% if show.tvdb_id %}
+      <span class="inline-flex items-center gap-1.5 bg-zinc-900 border border-zinc-800 rounded-full px-3 py-1 text-xs font-mono text-zinc-400">
+        TVDB {{ show.tvdb_id }}
+        <a href="https://www.thetvdb.com/series/{{ tvdb_slug or show.tvdb_id }}" target="_blank" rel="noopener"
+          class="text-violet-500 hover:text-violet-400 transition-colors leading-none" title="View on TVDB">&#8599;</a>
+      </span>
+      {% else %}
+      <span class="inline-flex items-center gap-1.5 bg-amber-950/40 border border-amber-800/60 rounded-full px-3 py-1 text-xs text-amber-500">
+        No TVDB ID
+      </span>
+      {% endif %}
+
+      {% if show.episodes %}
+      <span class="inline-flex items-center bg-zinc-900 border border-zinc-800 rounded-full px-3 py-1 text-xs text-zinc-500">
+        {{ show.episodes | length }} episodes in Plex
+      </span>
+      {% endif %}
+    </div>
+
+    <!-- Existing playlist banner (OOB swap target) -->
+    <div id="existing-playlist-banner">
+      {% if existing_playlist %}
+      <div class="flex items-center gap-3 bg-violet-950/25 border border-violet-800/40 rounded-xl px-4 py-3 mb-4 max-w-lg">
+        <div class="w-2 h-2 rounded-full bg-violet-400 flex-shrink-0"></div>
+        <div class="flex-1 min-w-0">
+          <p class="text-sm font-medium text-zinc-200">Playlist active in Plex</p>
+          <p class="text-xs text-zinc-500 truncate mt-0.5">"{{ existing_playlist.playlist_title }}"</p>
+        </div>
+        <button
+          type="button"
+          class="text-xs px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-rose-950/60 border border-zinc-700 hover:border-rose-800/60 text-zinc-400 hover:text-rose-400 transition-colors flex-shrink-0"
+          hx-post="/anime/{{ show.rating_key }}/playlist/delete"
+          hx-target="#playlist-result"
+          hx-swap="innerHTML"
+          hx-confirm="Delete '{{ existing_playlist.playlist_title }}' from Plex?"
+        >
+          Delete
+        </button>
+      </div>
+      {% endif %}
+    </div>
+
+    <!-- Watch Orders -->
+    <p class="text-xs font-semibold text-zinc-500 uppercase tracking-widest mb-3">Watch Orders</p>
+
+    <div class="bg-zinc-900 border border-zinc-800 rounded-xl p-5 max-w-lg">
+      <h3 class="font-semibold text-zinc-100 mb-1">TVDB Absolute Order</h3>
+      <p class="text-zinc-500 text-sm mb-4 leading-relaxed">
+        Orders all episodes — including specials — by TVDB's absolute numbering. Specials are interleaved at their correct position.
+      </p>
+
+      {% if show.tvdb_id %}
+      <div class="flex items-center gap-2 flex-wrap">
+        <button
+          type="button"
+          class="bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-zinc-300 font-medium px-4 py-2 rounded-lg text-sm transition-colors"
+          hx-post="/anime/{{ show.rating_key }}/coverage"
+          hx-target="#coverage-result"
+          hx-swap="innerHTML"
+          hx-indicator="#coverage-spinner"
+        >
+          Check Coverage
+        </button>
+        <button
+          type="button"
+          class="bg-violet-600 hover:bg-violet-500 active:bg-violet-700 text-white font-medium px-4 py-2 rounded-lg text-sm transition-colors"
+          hx-post="/anime/{{ show.rating_key }}/playlist"
+          hx-target="#playlist-result"
+          hx-swap="innerHTML"
+          hx-indicator="#playlist-spinner"
+          {% if existing_playlist %}hx-confirm="Recreate the existing playlist for '{{ show.title }}'?"{% endif %}
+        >
+          {% if existing_playlist %}Recreate Playlist{% else %}Create Playlist{% endif %}
+        </button>
+        <span id="coverage-spinner" class="htmx-indicator text-zinc-500 text-sm">Checking&hellip;</span>
+        <span id="playlist-spinner" class="htmx-indicator text-zinc-500 text-sm">Creating&hellip;</span>
+      </div>
+
+      <div id="coverage-result" class="mt-4 empty:mt-0"></div>
+      {% else %}
+      <button disabled class="bg-zinc-800 text-zinc-600 font-medium px-4 py-2 rounded-lg text-sm cursor-not-allowed">
+        Create Playlist
+      </button>
+      <p class="text-amber-500 text-xs mt-2">A TVDB ID is required. Ensure this show is matched to TVDB in Plex.</p>
+      {% endif %}
+
+      <div id="playlist-result" class="mt-4 empty:mt-0"></div>
+    </div>
+
+  </div>
+</div>
+{% endif %}
+
+{% endblock %}

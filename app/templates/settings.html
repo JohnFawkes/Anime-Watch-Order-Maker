@@ -1,0 +1,220 @@
+{% extends "base.html" %}
+{% block title %}Settings — Anime Watch Order Maker{% endblock %}
+
+{% block content %}
+
+<div class="max-w-2xl">
+  <h1 class="text-xl font-bold text-zinc-100 mb-6">Settings</h1>
+
+  {% if flash %}
+  <div class="mb-6 flex items-center gap-2.5 px-4 py-3 bg-emerald-950/40 border border-emerald-800/60 rounded-xl text-emerald-400 text-sm">
+    <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+    </svg>
+    {{ flash }}
+  </div>
+  {% endif %}
+
+  {% if flash_error %}
+  <div class="mb-6 px-4 py-3 bg-rose-950/40 border border-rose-800/60 rounded-xl text-rose-400 text-sm">
+    {{ flash_error }}
+  </div>
+  {% endif %}
+
+  <form method="post" action="/settings" class="space-y-6">
+
+    <!-- Plex -->
+    <div class="bg-zinc-900 border border-zinc-800 rounded-2xl p-6">
+      <h2 class="text-sm font-semibold text-zinc-300 mb-4">Plex Server</h2>
+      <div class="space-y-4">
+        <div>
+          <label class="block text-xs font-medium text-zinc-400 mb-1.5">Server URL</label>
+          <input name="plex_url" type="url" value="{{ settings.plex_url }}"
+            class="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3.5 py-2.5 text-sm text-zinc-100 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition">
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-zinc-400 mb-1.5">Plex Token <span class="text-zinc-600 font-normal">(leave blank to keep current: {{ settings.plex_token }})</span></label>
+          <input name="plex_token" type="password" placeholder="Leave blank to keep current"
+            class="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3.5 py-2.5 text-sm text-zinc-100 placeholder-zinc-600 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition">
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-zinc-400 mb-1.5">Anime Library</label>
+          <div class="flex gap-2">
+            <div id="library-container" class="flex-1">
+              <input name="plex_library" type="text" value="{{ settings.plex_library }}"
+                class="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3.5 py-2.5 text-sm text-zinc-100 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition">
+            </div>
+            <button
+              type="button"
+              class="px-3.5 py-2.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-zinc-300 text-sm transition-colors whitespace-nowrap"
+              hx-post="/settings/plex-libraries"
+              hx-target="#library-container"
+              hx-include="[name='plex_url']"
+              hx-indicator="#lib-spinner"
+            >
+              Discover
+            </button>
+          </div>
+          <span id="lib-spinner" class="htmx-indicator text-xs text-zinc-500 mt-1 block">Connecting to Plex&hellip;</span>
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-zinc-400 mb-1.5">
+            Movie Library
+            <span class="text-zinc-600 font-normal ml-1">— optional, for specials/OVAs stored as movies</span>
+          </label>
+          <div class="flex gap-2">
+            <div id="movie-library-container" class="flex-1">
+              <input name="movie_library" type="text" value="{{ settings.movie_library }}" placeholder="e.g. Anime Movies"
+                class="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3.5 py-2.5 text-sm text-zinc-100 placeholder-zinc-600 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition">
+            </div>
+            <button
+              type="button"
+              class="px-3.5 py-2.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-zinc-300 text-sm transition-colors whitespace-nowrap"
+              hx-post="/settings/movie-libraries"
+              hx-target="#movie-library-container"
+              hx-include="[name='plex_url']"
+              hx-indicator="#movie-lib-spinner"
+            >
+              Discover
+            </button>
+          </div>
+          <span id="movie-lib-spinner" class="htmx-indicator text-xs text-zinc-500 mt-1 block">Connecting to Plex&hellip;</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- TVDB -->
+    <div class="bg-zinc-900 border border-zinc-800 rounded-2xl p-6">
+      <h2 class="text-sm font-semibold text-zinc-300 mb-4">TVDB</h2>
+      <div>
+        <label class="block text-xs font-medium text-zinc-400 mb-1.5">
+          API Key <span class="text-zinc-600 font-normal">(current: {{ settings.tvdb_api_key }})</span>
+        </label>
+        <input name="tvdb_api_key" type="password" placeholder="Leave blank to keep current"
+          class="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3.5 py-2.5 text-sm text-zinc-100 placeholder-zinc-600 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition">
+      </div>
+    </div>
+
+    <!-- Automation / Cron -->
+    <div class="bg-zinc-900 border border-zinc-800 rounded-2xl p-6">
+      <h2 class="text-sm font-semibold text-zinc-300 mb-4">Automation</h2>
+      <div class="space-y-5">
+
+        <!-- Enable cron -->
+        <label class="flex items-center gap-3 cursor-pointer">
+          <input
+            type="checkbox"
+            name="cron_enabled"
+            value="on"
+            {% if settings.cron_enabled == "true" %}checked{% endif %}
+            class="w-4 h-4 rounded bg-zinc-800 border-zinc-600 text-violet-600 focus:ring-violet-500 focus:ring-offset-zinc-900"
+          >
+          <div>
+            <span class="text-sm text-zinc-200 font-medium">Enable scheduled auto-create</span>
+            <p class="text-xs text-zinc-500 mt-0.5">Automatically create/update playlists for all shows on a cron schedule</p>
+          </div>
+          {% if settings.cron_running %}
+          <span class="ml-auto text-xs px-2 py-0.5 rounded-full bg-emerald-950/60 border border-emerald-800/60 text-emerald-400">Running</span>
+          {% endif %}
+        </label>
+
+        <!-- Schedule -->
+        <div>
+          <label class="block text-xs font-medium text-zinc-400 mb-1.5">
+            Schedule
+            <span class="text-zinc-600 font-normal ml-1">— cron expression (minute hour day month weekday)</span>
+          </label>
+          <input
+            name="cron_schedule"
+            type="text"
+            value="{{ settings.cron_schedule or '0 3 * * *' }}"
+            placeholder="0 3 * * *"
+            class="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3.5 py-2.5 text-sm text-zinc-100 font-mono focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition"
+          >
+          <p class="text-xs text-zinc-600 mt-1">
+            Daily at 3 AM: <code class="text-zinc-500">0 3 * * *</code>
+            &nbsp;&bull;&nbsp; Every 6 hours: <code class="text-zinc-500">0 */6 * * *</code>
+            &nbsp;&bull;&nbsp; Hourly: <code class="text-zinc-500">0 * * * *</code>
+          </p>
+        </div>
+
+        <!-- Skip options -->
+        <div class="pt-1 border-t border-zinc-800">
+          <p class="text-xs font-semibold text-zinc-500 uppercase tracking-widest mb-3">Auto-skip filters</p>
+          <div class="space-y-3">
+            <label class="flex items-start gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                name="skip_no_specials"
+                value="on"
+                {% if settings.skip_no_specials == "true" %}checked{% endif %}
+                class="mt-0.5 w-4 h-4 rounded bg-zinc-800 border-zinc-600 text-violet-600 focus:ring-violet-500 focus:ring-offset-zinc-900"
+              >
+              <div>
+                <span class="text-sm text-zinc-200">Skip series with no specials on TVDB</span>
+                <p class="text-xs text-zinc-500 mt-0.5">If TVDB has no Season 0 or movie-type episodes, skip creating a playlist</p>
+              </div>
+            </label>
+            <label class="flex items-start gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                name="skip_no_order_change"
+                value="on"
+                {% if settings.skip_no_order_change == "true" %}checked{% endif %}
+                class="mt-0.5 w-4 h-4 rounded bg-zinc-800 border-zinc-600 text-violet-600 focus:ring-violet-500 focus:ring-offset-zinc-900"
+              >
+              <div>
+                <span class="text-sm text-zinc-200">Skip series where watch order wouldn't change</span>
+                <p class="text-xs text-zinc-500 mt-0.5">If the absolute order matches your natural Plex viewing order, skip creating a playlist</p>
+              </div>
+            </label>
+          </div>
+        </div>
+
+        <!-- Run Now -->
+        <div class="pt-1 border-t border-zinc-800 flex items-start gap-3 flex-wrap">
+          <button
+            type="button"
+            class="px-4 py-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-zinc-300 text-sm transition-colors"
+            hx-post="/cron/run-now"
+            hx-target="#cron-status"
+            hx-swap="outerHTML"
+            hx-indicator="#cron-spinner"
+          >
+            Run Now
+          </button>
+          <span id="cron-spinner" class="htmx-indicator text-xs text-zinc-500 self-center">Running&hellip; this may take a while</span>
+          <div id="cron-status" class="w-full"></div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Account -->
+    <div class="bg-zinc-900 border border-zinc-800 rounded-2xl p-6">
+      <h2 class="text-sm font-semibold text-zinc-300 mb-4">Account</h2>
+      <div class="space-y-4">
+        <div>
+          <label class="block text-xs font-medium text-zinc-400 mb-1.5">New Password <span class="text-zinc-600 font-normal">(leave blank to keep current)</span></label>
+          <input name="new_password" type="password" autocomplete="new-password"
+            class="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3.5 py-2.5 text-sm text-zinc-100 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition">
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-zinc-400 mb-1.5">Confirm Password</label>
+          <input name="confirm_password" type="password" autocomplete="new-password"
+            class="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3.5 py-2.5 text-sm text-zinc-100 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition">
+        </div>
+      </div>
+    </div>
+
+    <button
+      type="submit"
+      class="bg-violet-600 hover:bg-violet-500 text-white font-semibold px-6 py-2.5 rounded-lg text-sm transition-colors"
+    >
+      Save Settings
+    </button>
+
+  </form>
+</div>
+
+{% endblock %}
