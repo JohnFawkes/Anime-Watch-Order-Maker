@@ -1,7 +1,7 @@
 services:
-  kometa-playlist-maker:
-    build: .
-    container_name: kometa-playlist-maker
+  playlist-maker:
+    image: ghcr.io/johnfawkes/anime-watch-order-maker:latest
+    container_name: playlist-maker
     ports:
       - "${PORT:-8000}:8000"
     volumes:
