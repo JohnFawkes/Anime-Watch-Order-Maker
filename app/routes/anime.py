@@ -474,8 +474,8 @@ async def index(request: Request, db: Session = Depends(get_db)):
     skipped_keys = {row.show_rating_key for row in db.query(ShowSkip).all()}
 
     return templates.TemplateResponse(
-        "index.html",
-        {"request": request, "shows": shows, "error": error, "skipped_keys": skipped_keys},
+        request, "index.html",
+        {"shows": shows, "error": error, "skipped_keys": skipped_keys},
     )
 
 
@@ -542,9 +542,8 @@ async def anime_detail(
     skipped = db.query(ShowSkip).filter(ShowSkip.show_rating_key == rating_key).first() is not None
 
     return templates.TemplateResponse(
-        "anime_detail.html",
+        request, "anime_detail.html",
         {
-            "request": request,
             "show": show,
             "tvdb_slug": tvdb_slug,
             "existing_playlist": existing_playlist,
@@ -579,12 +578,11 @@ async def create_playlist(
 
     status = result.get("status")
     return templates.TemplateResponse(
-        "partials/playlist_result.html",
+        request, "partials/playlist_result.html",
         {
-            "request": request,
             "success": status in ("created", "no_change"),
             "deleted": False,
-            "update_type": result.get("update_type"),   # "appended" | "recreated" | None (new)
+            "update_type": result.get("update_type"),
             "no_change": status == "no_change",
             "playlist_title": result.get("playlist_title"),
             "playlist_rating_key": result.get("playlist_rating_key"),
@@ -721,9 +719,8 @@ async def episode_coverage(
     missing_count = sum(1 for i in coverage_items if i["source"] is None)
 
     return templates.TemplateResponse(
-        "partials/coverage_result.html",
+        request, "partials/coverage_result.html",
         {
-            "request": request,
             "coverage_items": coverage_items,
             "show_library": settings.get("plex_library", ""),
             "movie_library": settings.get("movie_library", ""),
@@ -773,9 +770,8 @@ async def delete_playlist(
         db.rollback()
 
     return templates.TemplateResponse(
-        "partials/playlist_result.html",
+        request, "partials/playlist_result.html",
         {
-            "request": request,
             "success": error is None,
             "deleted": error is None,
             "playlist_title": playlist_title,
@@ -813,6 +809,6 @@ async def toggle_skip(
     db.commit()
 
     return templates.TemplateResponse(
-        "partials/skip_toggle.html",
-        {"request": request, "rating_key": rating_key, "show_title": show_title, "skipped": skipped},
+        request, "partials/skip_toggle.html",
+        {"rating_key": rating_key, "show_title": show_title, "skipped": skipped},
     )

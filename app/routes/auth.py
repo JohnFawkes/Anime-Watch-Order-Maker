@@ -24,7 +24,7 @@ async def setup_get(request: Request, db: Session = Depends(get_db)):
     user_count = db.query(User).count()
     if user_count > 0:
         return RedirectResponse(url="/login", status_code=302)
-    return templates.TemplateResponse("setup.html", {"request": request, "error": None})
+    return templates.TemplateResponse(request, "setup.html", {"error": None})
 
 
 @router.post("/setup", response_class=HTMLResponse)
@@ -44,8 +44,8 @@ async def setup_post(
 
     if not username or not password:
         return templates.TemplateResponse(
-            "setup.html",
-            {"request": request, "error": "Username and password are required."},
+            request, "setup.html",
+            {"error": "Username and password are required."},
             status_code=400,
         )
 
@@ -78,7 +78,7 @@ async def login_get(request: Request, db: Session = Depends(get_db)):
         return RedirectResponse(url="/", status_code=302)
     if db.query(User).count() == 0:
         return RedirectResponse(url="/setup", status_code=302)
-    return templates.TemplateResponse("login.html", {"request": request, "error": None})
+    return templates.TemplateResponse(request, "login.html", {"error": None})
 
 
 @router.post("/login", response_class=HTMLResponse)
@@ -91,8 +91,8 @@ async def login_post(
     user = db.query(User).filter(User.username == username).first()
     if not user or not pwd_context.verify(password, user.hashed_password):
         return templates.TemplateResponse(
-            "login.html",
-            {"request": request, "error": "Invalid username or password."},
+            request, "login.html",
+            {"error": "Invalid username or password."},
             status_code=401,
         )
     request.session["user_id"] = user.id
@@ -125,6 +125,6 @@ async def api_plex_libraries(
         error = str(exc)
 
     return templates.TemplateResponse(
-        "partials/library_select.html",
-        {"request": request, "libraries": libraries, "error": error},
+        request, "partials/library_select.html",
+        {"libraries": libraries, "error": error},
     )

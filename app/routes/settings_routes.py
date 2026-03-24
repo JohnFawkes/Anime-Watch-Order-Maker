@@ -57,9 +57,8 @@ async def settings_get(request: Request, db: Session = Depends(get_db)):
     flash_error = request.session.pop("flash_error", None)
 
     return templates.TemplateResponse(
-        "settings.html",
+        request, "settings.html",
         {
-            "request": request,
             "settings": masked,
             "flash": flash,
             "flash_error": flash_error,
@@ -175,8 +174,8 @@ async def settings_plex_libraries(
         error = str(exc)
 
     return templates.TemplateResponse(
-        "partials/library_select.html",
-        {"request": request, "libraries": libraries, "error": error},
+        request, "partials/library_select.html",
+        {"libraries": libraries, "error": error},
     )
 
 
@@ -207,8 +206,8 @@ async def settings_movie_libraries(
         error = str(exc)
 
     return templates.TemplateResponse(
-        "partials/movie_library_select.html",
-        {"request": request, "libraries": libraries, "error": error},
+        request, "partials/movie_library_select.html",
+        {"libraries": libraries, "error": error},
     )
 
 
@@ -241,6 +240,6 @@ async def cron_run_now(request: Request):
         error = str(exc)
 
     return templates.TemplateResponse(
-        "partials/cron_status.html",
-        {"request": request, "result": result, "error": error},
+        request, "partials/cron_status.html",
+        {"result": result, "error": error},
     )
