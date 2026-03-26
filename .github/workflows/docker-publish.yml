@@ -103,7 +103,7 @@ jobs:
           echo "Starting container with tag: $TEST_TAG"
           docker run -d \
             -p 8000:8000 \
-            --tmpfs /data \
+            --tmpfs /data:uid=100,gid=101 \
             --name test-container \
             "$TEST_TAG"
 
