@@ -14,7 +14,7 @@ from app.plex_client import get_movie_libraries, get_plex_server, get_show_libra
 from app.routes.anime import get_all_settings
 
 router = APIRouter()
-templates = Jinja2Templates(directory="app/templates")
+templates = Jinja2Templates(directory="app/templates", autoescape=True)
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 

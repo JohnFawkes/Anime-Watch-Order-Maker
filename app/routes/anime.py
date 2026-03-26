@@ -29,7 +29,7 @@ from app.tvdb_client import (
 log = logging.getLogger("anime_watcher.anime")
 
 router = APIRouter()
-templates = Jinja2Templates(directory="app/templates")
+templates = Jinja2Templates(directory="app/templates", autoescape=True)
 
 
 def _require_auth(request: Request):

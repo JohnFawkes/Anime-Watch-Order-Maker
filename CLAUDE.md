@@ -75,12 +75,18 @@ crypto.py -> Setting.value (all sensitive values are Fernet-encrypted at rest)
 scheduler.py -> run_auto_playlists() -> _build_playlist_for_show() (background thread)
 ```
 
+### Security notes
+
+- The Docker container runs as a non-root `app` system user (added via `adduser --system`).
+- All `Jinja2Templates` instances are initialised with `autoescape=True` — do not remove this when adding new route files.
+- CDN scripts in templates carry `integrity` (SRI) and `crossorigin="anonymous"` attributes — update these hashes if upgrading Tailwind or HTMX versions.
+
 ### Tech stack
 
 - **FastAPI** — web framework
 - **Jinja2** — server-side templating
 - **HTMX** — dynamic UI updates without full page reloads (OOB swaps for playlist banner)
-- **Tailwind CSS** (CDN) — violet/zinc dark-themed styling
+- **Tailwind CSS** (CDN, pinned to 3.4.17 with SRI hash) — violet/zinc dark-themed styling
 - **SQLAlchemy** — ORM over SQLite
 - **cryptography (Fernet)** — symmetric encryption for DB values
 - **plexapi** — Plex Media Server client
