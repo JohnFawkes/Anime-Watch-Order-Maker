@@ -1,9 +1,9 @@
-uvicorn[standard]==0.46.0
+uvicorn[standard]==0.48.0
 jinja2==3.1.6
-python-multipart==0.0.26
+python-multipart==0.0.29
 plexapi==4.18.1
 starlette==1.0.0
-fastapi>=0.136.1,<2.0.0
+fastapi>=0.136.3,<2.0.0
 httpx==0.28.1
 cryptography==46.0.6
 sqlalchemy==2.0.49
