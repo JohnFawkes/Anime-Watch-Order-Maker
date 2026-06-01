@@ -2,7 +2,7 @@ uvicorn[standard]==0.46.0
 jinja2==3.1.6
 python-multipart==0.0.26
 plexapi==4.18.1
-starlette==1.0.0
+starlette==1.2.1
 fastapi>=0.136.1,<2.0.0
 httpx==0.28.1
 cryptography==46.0.6
