@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
+import jinja2
 from fastapi.templating import Jinja2Templates
 from passlib.context import CryptContext
 from sqlalchemy.orm import Session
@@ -10,7 +11,7 @@ from app.models import Setting, User
 from app.plex_client import get_plex_server, get_show_libraries
 
 router = APIRouter()
-templates = Jinja2Templates(directory="app/templates", autoescape=True)
+templates = Jinja2Templates(env=jinja2.Environment(loader=jinja2.FileSystemLoader("app/templates"), autoescape=True))
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 

@@ -2,6 +2,7 @@ import logging
 import re
 
 import httpx
+import jinja2
 from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import HTMLResponse, Response, RedirectResponse
 from fastapi.templating import Jinja2Templates
@@ -29,7 +30,7 @@ from app.tvdb_client import (
 log = logging.getLogger("anime_watcher.anime")
 
 router = APIRouter()
-templates = Jinja2Templates(directory="app/templates", autoescape=True)
+templates = Jinja2Templates(env=jinja2.Environment(loader=jinja2.FileSystemLoader("app/templates"), autoescape=True))
 
 
 def _require_auth(request: Request):
@@ -54,33 +55,19 @@ def _match_movie(
     movie_by_tmdb_id: dict[str, int],
     movie_norm_titles: dict[str, int],
 ) -> int | None:
-    """Try to find a movie library rating key for a TVDB episode.
-
-    Lookup order:
-    1. TVDB episode ID → movie library tvdb:// GUID (rare but possible)
-    2. linkedMovies on the episode → TVDB movie ID → TMDB ID → Plex tmdb:// GUID
-    3. Episode name → TVDB series-movie name match → TMDB ID → Plex tmdb:// GUID
-       (handles cases where bulk episode API omits linkedMovies)
-    4. Exact episode title match against Plex movie titles
-    5. Normalized fuzzy title match (punctuation-stripped)
-    """
     ep_id = str(tvdb_ep.get("id", ""))
     ep_name = (tvdb_ep.get("name") or "").strip()
-    # _english_name is set by enrich_unmatched_specials when TVDB has a translation
     english_name = (tvdb_ep.get("_english_name") or "").strip()
     abs_num = tvdb_ep.get("absoluteNumber", "?")
 
     log.debug("  [movie-match] ep %s (%s / eng: %s) abs=%s — searching movie library",
               ep_id, ep_name, english_name or "—", abs_num)
 
-    # 1. TVDB episode ID directly in the movie library (unlikely but cheap)
     rk = movie_by_tvdb_id.get(ep_id)
     if rk:
         log.debug("    → matched via tvdb episode-ID GUID (rk=%s)", rk)
         return rk
 
-    # 2. linkedMovies field on the episode → TVDB movie ID → TMDB ID → Plex
-    #    enrich_unmatched_specials populates this when the bulk endpoint omits it.
     for linked in tvdb_ep.get("linkedMovies") or []:
         movie_tvdb_id = str(linked.get("id", ""))
         tmdb_id = series_movie_tmdb_by_id.get(movie_tvdb_id)
@@ -91,9 +78,7 @@ def _match_movie(
                 log.debug("    → matched via linkedMovies→TMDB (rk=%s)", rk)
                 return rk
 
-    # 3. Try both the episode name and its English translation against the
-    #    TVDB series-movie name → TMDB ID mapping.
-    for candidate in dict.fromkeys([english_name, ep_name]):  # dedup, preserve order
+    for candidate in dict.fromkeys([english_name, ep_name]):
         if not candidate:
             continue
         name_key = _title_key(candidate)
@@ -106,8 +91,6 @@ def _match_movie(
                 return rk
             log.debug("    TMDB id %s not found in Plex movie library index", tmdb_id)
 
-    # 4 & 5. Direct title match against Plex movie library (exact then fuzzy).
-    #         Try English name first, then original episode name.
     for candidate in dict.fromkeys([english_name, ep_name]):
         if not candidate:
             continue
@@ -120,11 +103,6 @@ def _match_movie(
             log.debug("    → matched via fuzzy title '%s' (rk=%s)", candidate, rk)
             return rk
 
-    # 6. Prefix/substring match — handles cases where one side has extra subtitle
-    #    detail the other doesn't.
-    #    e.g. TVDB: "JUJUTSU KAISEN: Execution"
-    #         Plex: "JUJUTSU KAISEN: Execution -Shibuya Incident x The Culling Game Begins-"
-    #    Require ≥ 8 chars on the shorter side to avoid short-name false positives.
     for candidate in dict.fromkeys([english_name, ep_name]):
         if not candidate:
             continue
@@ -144,12 +122,6 @@ def _match_movie(
 
 
 def _english_title(tvdb_name: str | None, is_special: bool, abs_num_display: str) -> str:
-    """Returns a display title for a TVDB episode.
-
-    The bulk episode endpoint is called with lang=en, so tvdb_name should
-    already be in English when TVDB has a translation. Only falls back to a
-    numbered generic label when TVDB has no name at all for the episode.
-    """
     if tvdb_name:
         return tvdb_name
     return f"Special {abs_num_display}" if is_special else f"Episode {abs_num_display}"
@@ -207,7 +179,6 @@ def _build_playlist_for_show(
         total = len(tvdb_episodes)
         log.debug("BUILD PLAYLIST: '%s' (tvdb=%s) — %d TVDB episodes", show["title"], tvdb_id, total)
 
-        # Skip: no specials
         if skip_no_specials:
             has_specials = any(
                 ep.get("seasonNumber") == 0 or bool(ep.get("isMovie"))
@@ -218,7 +189,6 @@ def _build_playlist_for_show(
                 return {**_empty, "status": "skipped", "skip_reason": "no_specials",
                         "show_title": show["title"], "total": total}
 
-        # Index Plex show episodes by TVDB episode ID
         tvdb_ep_id_to_rk: dict[str, int] = {}
         for ep in show["episodes"]:
             ep_tvdb_id = ep.get("tvdb_episode_id")
@@ -226,7 +196,6 @@ def _build_playlist_for_show(
                 tvdb_ep_id_to_rk[str(ep_tvdb_id)] = ep["rating_key"]
         log.debug("Show library: %d episodes with TVDB episode IDs", len(tvdb_ep_id_to_rk))
 
-        # Movie library index (pre-built for cron job, or built per-show for HTTP)
         if prebuilt_movie_index is not None:
             movie_by_tvdb_id, movie_by_title, movie_by_tmdb_id, movie_norm_titles = prebuilt_movie_index
         elif settings.get("movie_library"):
@@ -261,7 +230,6 @@ def _build_playlist_for_show(
         else:
             log.debug("No movie library configured — skipping movie library lookup")
 
-        # Build ordered list of Plex rating keys following TVDB absolute order
         ordered_rating_keys: list[int] = []
         for tvdb_ep in tvdb_episodes:
             ep_id = str(tvdb_ep.get("id", ""))
@@ -286,9 +254,7 @@ def _build_playlist_for_show(
                     "error": "No Plex episodes could be matched to TVDB absolute order entries. "
                              "Ensure your Plex library uses the TVDB agent with episode GUIDs."}
 
-        # Skip: watch order wouldn't change (compare absolute order vs Plex natural order)
         if skip_no_order_change:
-            # Only compare show-library episodes (movies are always an "addition")
             abs_show_rks = [
                 tvdb_ep_id_to_rk[str(ep.get("id", ""))]
                 for ep in tvdb_episodes
@@ -308,7 +274,6 @@ def _build_playlist_for_show(
                 return {**_empty, "status": "skipped", "skip_reason": "no_order_change",
                         "show_title": show["title"], "matched": matched, "total": total}
 
-        # Create or incrementally update the playlist in Plex
         playlist_title = f"{show['title']} — Absolute Order"
         existing = db.query(Playlist).filter(Playlist.show_rating_key == rating_key).first()
 
@@ -324,13 +289,11 @@ def _build_playlist_for_show(
                             "playlist_title": existing.playlist_title,
                             "playlist_rating_key": existing.playlist_rating_key,
                             "show_title": show["title"], "matched": matched, "total": total}
-                # Playlist was appended-to or recreated — update DB record
                 new_playlist_rk = plex_playlist.ratingKey
                 existing.playlist_rating_key = new_playlist_rk
                 existing.playlist_title = playlist_title
                 db.commit()
             except Exception as exc:
-                # Playlist was deleted from Plex externally — create a fresh one
                 log.debug("Could not update existing playlist for '%s' (%s) — creating new",
                           show["title"], exc)
                 db.delete(existing)
@@ -358,7 +321,7 @@ def _build_playlist_for_show(
         return {
             "status": "created",
             "skip_reason": None,
-            "update_type": update_type,  # "appended" | "recreated" | None (new)
+            "update_type": update_type,
             "playlist_title": playlist_title,
             "playlist_rating_key": new_playlist_rk,
             "show_title": show["title"],
@@ -378,11 +341,7 @@ def _build_playlist_for_show(
 
 
 def run_auto_playlists(db: Session) -> dict:
-    """Iterate all shows in the library and create/update playlists.
-
-    Respects the ShowSkip table and skip_no_specials / skip_no_order_change
-    settings flags.  Returns a summary dict with created/skipped/errors counts.
-    """
+    """Iterate all shows in the library and create/update playlists."""
     log.info("Auto-playlist job starting")
     settings = get_all_settings(db)
 
@@ -396,7 +355,6 @@ def run_auto_playlists(db: Session) -> dict:
         log.error("Auto-playlist job: could not connect to Plex: %s", exc)
         return {"created": 0, "skipped": 0, "errors": 1, "error": str(exc)}
 
-    # Pre-index the movie library once for the whole job
     prebuilt_movie_index: tuple | None = None
     if settings.get("movie_library"):
         log.debug("Pre-indexing movie library '%s'", settings["movie_library"])
@@ -621,7 +579,6 @@ async def episode_coverage(
         tvdb_episodes = get_absolute_order_episodes(settings["tvdb_api_key"], int(tvdb_id))
         log.debug("COVERAGE: '%s' (tvdb=%s) — %d TVDB episodes", show["title"], tvdb_id, len(tvdb_episodes))
 
-        # Index Plex show episodes by TVDB episode ID → rating key + English title
         tvdb_ep_id_to_rk: dict[str, int] = {}
         tvdb_ep_id_to_plex_title: dict[str, str] = {}
         for ep in show["episodes"]:
@@ -632,7 +589,6 @@ async def episode_coverage(
                     tvdb_ep_id_to_plex_title[str(ep_tvdb_id)] = ep["title"]
         log.debug("Show library: %d episodes with TVDB episode IDs", len(tvdb_ep_id_to_rk))
 
-        # Optionally index movie library (tvdb, tmdb, exact title, fuzzy title)
         movie_by_tvdb_id: dict[str, int] = {}
         movie_by_title: dict[str, int] = {}
         movie_by_tmdb_id: dict[str, int] = {}
@@ -651,8 +607,6 @@ async def episode_coverage(
             except Exception as exc:
                 log.warning("Failed to fetch series movie TMDB IDs: %s", exc)
 
-            # Enrich unmatched S00/movie episodes with linkedMovies + English
-            # translations fetched from the TVDB episode extended endpoint.
             unmatched_specials = [
                 ep for ep in tvdb_episodes
                 if str(ep.get("id", "")) not in tvdb_ep_id_to_rk
@@ -689,12 +643,9 @@ async def episode_coverage(
                 source = "movie"
                 source_lib = settings.get("movie_library", "Movie Library")
 
-            # Specials interleaved from default order get fractional abs numbers (e.g. 9.5)
             is_special = float(abs_num) != int(float(abs_num))
             abs_num_display = str(abs_num) if is_special else str(int(float(abs_num)))
 
-            # Title priority: Plex (always English) → TVDB English translation
-            # (set by enrich_unmatched_specials) → raw TVDB name → generic fallback.
             plex_title = tvdb_ep_id_to_plex_title.get(ep_id)
             if plex_title:
                 display_name = plex_title

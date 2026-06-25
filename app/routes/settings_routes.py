@@ -2,6 +2,7 @@ import asyncio
 
 from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
+import jinja2
 from fastapi.templating import Jinja2Templates
 from passlib.context import CryptContext
 from sqlalchemy.orm import Session
@@ -14,7 +15,7 @@ from app.plex_client import get_movie_libraries, get_plex_server, get_show_libra
 from app.routes.anime import get_all_settings
 
 router = APIRouter()
-templates = Jinja2Templates(directory="app/templates", autoescape=True)
+templates = Jinja2Templates(env=jinja2.Environment(loader=jinja2.FileSystemLoader("app/templates"), autoescape=True))
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
@@ -152,12 +153,6 @@ async def settings_plex_libraries(
     plex_url: str = Form(""),
     db: Session = Depends(get_db),
 ):
-    """Library discovery for the settings page.
-
-    Uses the Plex URL from the form (so edits take effect immediately) but
-    always reads the token from the database so the hidden token never needs
-    to be round-tripped through the browser.
-    """
     if not _require_auth(request):
         return RedirectResponse(url="/login", status_code=302)
 
@@ -185,11 +180,6 @@ async def settings_movie_libraries(
     plex_url: str = Form(""),
     db: Session = Depends(get_db),
 ):
-    """Movie library discovery for the settings page.
-
-    Reads the Plex token from the database so it never needs to be
-    round-tripped through the browser.
-    """
     if not _require_auth(request):
         return RedirectResponse(url="/login", status_code=302)
 
