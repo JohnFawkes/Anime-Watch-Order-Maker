@@ -1,0 +1,33 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended"],
+  "timezone": "America/New_York",
+  "schedule": ["before 6am on Monday"],
+  "prConcurrentLimit": 10,
+  "packageRules": [
+    {
+      "description": "FastAPI stack",
+      "matchPackageNames": ["fastapi", "uvicorn", "python-multipart", "itsdangerous", "starlette"],
+      "groupName": "FastAPI stack"
+    },
+    {
+      "description": "Security packages — automerge patch only",
+      "matchPackageNames": ["cryptography", "passlib", "bcrypt"],
+      "groupName": "security",
+      "automerge": true,
+      "matchUpdateTypes": ["patch"]
+    },
+    {
+      "description": "Plex API client",
+      "matchPackageNames": ["plexapi"],
+      "groupName": "plex"
+    },
+    {
+      "description": "GitHub Actions — automerge patch/minor",
+      "matchManagers": ["github-actions"],
+      "groupName": "GitHub Actions",
+      "automerge": true,
+      "matchUpdateTypes": ["minor", "patch"]
+    }
+  ]
+}
