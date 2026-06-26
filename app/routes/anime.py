@@ -2,10 +2,8 @@ import logging
 import re
 
 import httpx
-import jinja2
 from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import Response, RedirectResponse
-from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
 from app.crypto import decrypt
@@ -20,6 +18,7 @@ from app.plex_client import (
     get_shows_from_library,
     update_plex_playlist,
 )
+from app.templates_config import templates
 from app.tvdb_client import (
     enrich_unmatched_specials,
     get_absolute_order_episodes,
@@ -30,7 +29,6 @@ from app.tvdb_client import (
 log = logging.getLogger("anime_watcher.anime")
 
 router = APIRouter()
-templates = Jinja2Templates(env=jinja2.Environment(loader=jinja2.FileSystemLoader("app/templates"), autoescape=True))
 
 
 def _require_auth(request: Request):
