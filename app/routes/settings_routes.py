@@ -1,7 +1,7 @@
 import asyncio
 
 from fastapi import APIRouter, Depends, Form, Request
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import RedirectResponse
 import jinja2
 from fastapi.templating import Jinja2Templates
 from passlib.context import CryptContext
@@ -35,7 +35,7 @@ def _mask(value: str) -> str:
 # ---------------------------------------------------------------------------
 
 
-@router.get("/settings", response_class=HTMLResponse)
+@router.get("/settings")
 async def settings_get(request: Request, db: Session = Depends(get_db)):
     if not _require_auth(request):
         return RedirectResponse(url="/login", status_code=302)
@@ -67,7 +67,7 @@ async def settings_get(request: Request, db: Session = Depends(get_db)):
     )
 
 
-@router.post("/settings", response_class=HTMLResponse)
+@router.post("/settings")
 async def settings_post(
     request: Request,
     plex_url: str = Form(""),
@@ -147,7 +147,7 @@ async def settings_post(
 # ---------------------------------------------------------------------------
 
 
-@router.post("/settings/plex-libraries", response_class=HTMLResponse)
+@router.post("/settings/plex-libraries")
 async def settings_plex_libraries(
     request: Request,
     plex_url: str = Form(""),
@@ -174,7 +174,7 @@ async def settings_plex_libraries(
     )
 
 
-@router.post("/settings/movie-libraries", response_class=HTMLResponse)
+@router.post("/settings/movie-libraries")
 async def settings_movie_libraries(
     request: Request,
     plex_url: str = Form(""),
@@ -206,7 +206,7 @@ async def settings_movie_libraries(
 # ---------------------------------------------------------------------------
 
 
-@router.post("/cron/run-now", response_class=HTMLResponse)
+@router.post("/cron/run-now")
 async def cron_run_now(request: Request):
     if not _require_auth(request):
         return RedirectResponse(url="/login", status_code=302)

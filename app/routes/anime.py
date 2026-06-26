@@ -4,7 +4,7 @@ import re
 import httpx
 import jinja2
 from fastapi import APIRouter, Depends, Form, Request
-from fastapi.responses import HTMLResponse, Response, RedirectResponse
+from fastapi.responses import Response, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
@@ -414,7 +414,7 @@ def run_auto_playlists(db: Session) -> dict:
 # ---------------------------------------------------------------------------
 
 
-@router.get("/", response_class=HTMLResponse)
+@router.get("/")
 async def index(request: Request, db: Session = Depends(get_db)):
     if not _require_auth(request):
         return RedirectResponse(url="/login", status_code=302)
@@ -469,7 +469,7 @@ async def proxy_thumb(request: Request, path: str, db: Session = Depends(get_db)
 # ---------------------------------------------------------------------------
 
 
-@router.get("/anime/{rating_key}", response_class=HTMLResponse)
+@router.get("/anime/{rating_key}")
 async def anime_detail(
     rating_key: int, request: Request, db: Session = Depends(get_db)
 ):
@@ -516,7 +516,7 @@ async def anime_detail(
 # ---------------------------------------------------------------------------
 
 
-@router.post("/anime/{rating_key}/playlist", response_class=HTMLResponse)
+@router.post("/anime/{rating_key}/playlist")
 async def create_playlist(
     rating_key: int, request: Request, db: Session = Depends(get_db)
 ):
@@ -557,7 +557,7 @@ async def create_playlist(
 # ---------------------------------------------------------------------------
 
 
-@router.post("/anime/{rating_key}/coverage", response_class=HTMLResponse)
+@router.post("/anime/{rating_key}/coverage")
 async def episode_coverage(
     rating_key: int, request: Request, db: Session = Depends(get_db)
 ):
@@ -689,7 +689,7 @@ async def episode_coverage(
 # ---------------------------------------------------------------------------
 
 
-@router.post("/anime/{rating_key}/playlist/delete", response_class=HTMLResponse)
+@router.post("/anime/{rating_key}/playlist/delete")
 async def delete_playlist(
     rating_key: int, request: Request, db: Session = Depends(get_db)
 ):
@@ -740,7 +740,7 @@ async def delete_playlist(
 # ---------------------------------------------------------------------------
 
 
-@router.post("/anime/{rating_key}/skip", response_class=HTMLResponse)
+@router.post("/anime/{rating_key}/skip")
 async def toggle_skip(
     rating_key: int,
     request: Request,
