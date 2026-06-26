@@ -1,7 +1,5 @@
 from fastapi import APIRouter, Depends, Form, Request
-from fastapi.responses import HTMLResponse, RedirectResponse
-import jinja2
-from fastapi.templating import Jinja2Templates
+from fastapi.responses import RedirectResponse
 from passlib.context import CryptContext
 from sqlalchemy.orm import Session
 
@@ -9,9 +7,9 @@ from app.crypto import encrypt
 from app.database import get_db
 from app.models import Setting, User
 from app.plex_client import get_plex_server, get_show_libraries
+from app.templates_config import templates
 
 router = APIRouter()
-templates = Jinja2Templates(env=jinja2.Environment(loader=jinja2.FileSystemLoader("app/templates"), autoescape=True))
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
@@ -20,7 +18,7 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 # ---------------------------------------------------------------------------
 
 
-@router.get("/setup", response_class=HTMLResponse)
+@router.get("/setup")
 async def setup_get(request: Request, db: Session = Depends(get_db)):
     user_count = db.query(User).count()
     if user_count > 0:
@@ -28,7 +26,7 @@ async def setup_get(request: Request, db: Session = Depends(get_db)):
     return templates.TemplateResponse(request, "setup.html", {"error": None})
 
 
-@router.post("/setup", response_class=HTMLResponse)
+@router.post("/setup")
 async def setup_post(
     request: Request,
     username: str = Form(...),
@@ -73,7 +71,7 @@ async def setup_post(
 # ---------------------------------------------------------------------------
 
 
-@router.get("/login", response_class=HTMLResponse)
+@router.get("/login")
 async def login_get(request: Request, db: Session = Depends(get_db)):
     if request.session.get("user_id"):
         return RedirectResponse(url="/", status_code=302)
@@ -82,7 +80,7 @@ async def login_get(request: Request, db: Session = Depends(get_db)):
     return templates.TemplateResponse(request, "login.html", {"error": None})
 
 
-@router.post("/login", response_class=HTMLResponse)
+@router.post("/login")
 async def login_post(
     request: Request,
     username: str = Form(...),
@@ -111,7 +109,7 @@ async def logout(request: Request):
 # ---------------------------------------------------------------------------
 
 
-@router.post("/api/plex-libraries", response_class=HTMLResponse)
+@router.post("/api/plex-libraries")
 async def api_plex_libraries(
     request: Request,
     plex_url: str = Form(...),
