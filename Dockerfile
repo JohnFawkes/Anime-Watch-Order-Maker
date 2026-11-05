@@ -1,4 +1,9 @@
 FROM python:3.15-slim
+# Pull in Debian security fixes that landed after the base image was built
+# (e.g. apt/libapt-pkg CVE-2026-109518), so Trivy doesn't flag fixable OS CVEs.
+RUN apt-get update && \
+    apt-get upgrade -y --no-install-recommends && \
+    rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY requirements.txt .
 # pip is only needed at build time. Its vendored copies of urllib3, msgpack
